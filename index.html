@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Route Safety Navigator</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Prevent favicon 404 error -->
+  <link rel="icon" href="data:," />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="homepage" class="homepage">
+    <div class="hero-content">
+      <h1>Route Safety Navigator</h1>
+      <p class="subtitle">Find the safest way home</p>
+      
+      <div class="features">
+        <div class="feature-item">
+          <div class="feature-icon">📍</div>
+          <h3>Smart Routes</h3>
+          <p>Compare multiple paths to your destination</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🛡️</div>
+          <h3>Safety First</h3>
+          <p>Crowdsourced safety data to guide your journey</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🚶</div>
+          <h3>Walking Assistant</h3>
+          <p>Real-time safety scores for each route</p>
+        </div>
+      </div>
+
+      <button id="get-started" class="get-started-btn">Get Started</button>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <div class="dashboard-layout">
+      <!-- Left Sidebar -->
+      <aside class="sidebar-left">
+        <div class="logo-area">
+          <h1>Route Safety</h1>
+        </div>
+        <nav class="nav-menu">
+          <button class="nav-item active">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
+          </button>
+          <button class="nav-item">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </button>
+          <button class="nav-item">
+            <span class="nav-icon">❓</span>
+            <span>Help</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Top Bar -->
+        <header class="top-bar">
+          <div class="search-container">
+            <input type="text" id="destination" placeholder="Enter destination..." />
+            <button id="search">Find Routes</button>
+          </div>
+          <div class="stats-container">
+            <div class="stat-card">
+              <span class="stat-label">Safety Score</span>
+              <span class="stat-value">8.5</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Reports</span>
+              <span class="stat-value">24</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Risk Level</span>
+              <span class="stat-value">Low</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Map Area -->
+        <div class="map-container">
+          <div id="map"></div>
+          <div class="pin-controls">
+            <button id="add-pin" class="primary-btn">Add Safety Pin</button>
+            <button id="cancel-pin" class="secondary-btn hidden">Cancel</button>
+            <select id="pin-type">
+              <option value="safe">Safe Area</option>
+              <option value="unsafe">Unsafe Area</option>
+              <option value="high-traffic">High Traffic</option>
+            </select>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Panel -->
+      <aside class="sidebar-right">
+        <div class="panel-header">
+          <h2>Route Safety Analysis</h2>
+        </div>
+        <div id="route-info" class="route-list"></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Load Google Maps JavaScript API -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCe7udB0DvTSN1Uuh2I0UzKPSmPLb07sh8&libraries=places,geometry&callback=initMap"
+    async
+    defer
+  ></script>
+
+  <!-- Your app logic -->
+  <script src="app.js"></script>
+</body>
+</html>
