@@ -1,4 +1,4 @@
-# EchoRoute 🛡️🗺️
+# EchoRoute
 
 A modern route safety navigation application that helps users find the safest walking routes to their destination. Built with JavaScript, Google Maps API, and a beautiful dashboard interface.
 
