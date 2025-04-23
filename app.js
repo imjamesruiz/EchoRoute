@@ -1,21 +1,4 @@
-// Homepage interaction
-document.getElementById('get-started').addEventListener('click', () => {
-    document.getElementById('homepage').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    // Initialize map after homepage is hidden
-    initMap();
-});
-
-// Back to home button interaction
-document.getElementById('back-to-home').addEventListener('click', () => {
-    document.getElementById('app').classList.add('hidden');
-    document.getElementById('homepage').classList.remove('hidden');
-    // Clear any existing routes and markers
-    if (directionsRenderer) {
-        directionsRenderer.setMap(null);
-    }
-    document.getElementById('route-info').innerHTML = '';
-});
+// Final cleaned and debug-hardened JavaScript file for Route Safety Navigator
 
 let map;
 let directionsService;
@@ -26,15 +9,41 @@ let routes = [];
 let autocomplete;
 let mapClickListener = null;
 let isPinDropMode = false;
+let mapInitialized = false;
 
-// Initialize the map
-function initMap() {
+function ensureMapReady(callback) {
+    if (!mapInitialized || !directionsService || !directionsRenderer) {
+        alert("Map is still loading. Please wait a moment.");
+        return;
+    }
+    callback();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const getStartedBtn = document.getElementById('get-started');
+    if (getStartedBtn) {
+        getStartedBtn.addEventListener('click', () => {
+            document.getElementById('homepage').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+        });
+    }
+
+    const backHomeBtn = document.getElementById('back-to-home');
+    if (backHomeBtn) {
+        backHomeBtn.addEventListener('click', () => {
+            document.getElementById('app').classList.add('hidden');
+            document.getElementById('homepage').classList.remove('hidden');
+            if (directionsRenderer) directionsRenderer.setMap(null);
+            const infoPanel = document.getElementById('route-info');
+            if (infoPanel) infoPanel.innerHTML = '';
+        });
+    }
+});
+
+window.initMap = function() {
     directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({
-        suppressMarkers: true
-    });
+    directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
 
-    // Get user's current location
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -42,34 +51,211 @@ function initMap() {
                     lat: position.coords.latitude,
                     lng: position.coords.longitude
                 };
-
-                map = new google.maps.Map(document.getElementById('map'), {
-                    center: currentLocation,
-                    zoom: 15
-                });
-
-                directionsRenderer.setMap(map);
-                addUserMarker();
-                loadSafetyPins();
-                setupEventListeners();
+                initializeMap(currentLocation);
             },
-            (error) => {
-                console.error('Error getting location:', error);
-                // Default to a central location if geolocation fails
-                currentLocation = { lat: 40.7128, lng: -74.0060 };
-                map = new google.maps.Map(document.getElementById('map'), {
-                    center: currentLocation,
-                    zoom: 15
-                });
-                setupEventListeners();
-            }
+            () => initializeMap({ lat: 40.7128, lng: -74.0060 })
         );
+    } else {
+        initializeMap({ lat: 40.7128, lng: -74.0060 });
     }
+};
+
+function initializeMap(center) {
+    map = new google.maps.Map(document.getElementById('map'), {
+        center,
+        zoom: 15
+    });
+    directionsRenderer.setMap(map);
+    mapInitialized = true;
+    addUserMarker();
+    loadSafetyPins();
+    setupMapListeners();
+}
+
+function setupNavigationListeners() {
+    console.log('Setting up navigation listeners...');
+    
+    // Get Started button
+    const getStartedBtn = document.getElementById('get-started');
+    if (getStartedBtn) {
+        getStartedBtn.addEventListener('click', () => {
+            showDashboard();
+        });
+    }
+
+    // Navigation buttons
+    const navHomeBtn = document.getElementById('nav-home');
+    const navDashboardBtn = document.getElementById('nav-dashboard');
+    const backHomeBtn = document.getElementById('back-to-home');
+
+    if (navHomeBtn) {
+        navHomeBtn.addEventListener('click', () => {
+            showHomepage();
+        });
+    }
+
+    if (navDashboardBtn) {
+        navDashboardBtn.addEventListener('click', () => {
+            showDashboard();
+        });
+    }
+
+    if (backHomeBtn) {
+        backHomeBtn.addEventListener('click', () => {
+            showHomepage();
+        });
+    }
+}
+
+function showHomepage() {
+    document.getElementById('homepage').classList.remove('hidden');
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('nav-home').classList.add('active');
+    document.getElementById('nav-dashboard').classList.remove('active');
+}
+
+function showDashboard() {
+    document.getElementById('homepage').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('nav-home').classList.remove('active');
+    document.getElementById('nav-dashboard').classList.add('active');
+
+    // Initialize map only if it hasn't been initialized yet
+    if (!mapInitialized) {
+        initializeMap(window.currentLocation);
+        setupMapControls();
+    }
+}
+
+function setupMapControls() {
+    console.log('Setting up map controls...');
+    const searchBtn = document.getElementById('search');
+    const destinationInput = document.getElementById('destination');
+    const addPinBtn = document.getElementById('add-pin');
+    const cancelPinBtn = document.getElementById('cancel-pin');
+
+    if (destinationInput) {
+        autocomplete = new google.maps.places.Autocomplete(destinationInput);
+        destinationInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleRouteSearch();
+            }
+        });
+    }
+
+    if (searchBtn) {
+        searchBtn.addEventListener('click', handleRouteSearch);
+    }
+
+    if (addPinBtn) {
+        addPinBtn.addEventListener('click', () => {
+            if (!isPinDropMode) startPinDropMode();
+        });
+    }
+
+    if (cancelPinBtn) {
+        cancelPinBtn.addEventListener('click', () => {
+            if (isPinDropMode) endPinDropMode();
+        });
+    }
+}
+
+function setupMapListeners() {
+    const searchBtn = document.getElementById('search');
+    const destinationInput = document.getElementById('destination');
+    const addPinBtn = document.getElementById('add-pin');
+    const cancelPinBtn = document.getElementById('cancel-pin');
+
+    if (destinationInput) {
+        autocomplete = new google.maps.places.Autocomplete(destinationInput);
+        destinationInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleRouteSearch();
+            }
+        });
+    }
+
+    if (searchBtn) {
+        searchBtn.addEventListener('click', handleRouteSearch);
+    }
+
+    if (addPinBtn) {
+        addPinBtn.addEventListener('click', () => {
+            if (!isPinDropMode) startPinDropMode();
+        });
+    }
+
+    if (cancelPinBtn) {
+        cancelPinBtn.addEventListener('click', () => {
+            if (isPinDropMode) endPinDropMode();
+        });
+    }
+}
+
+function handleRouteSearch() {
+    const input = document.getElementById('destination');
+    if (!input || !input.value.trim()) {
+        alert('Please enter a destination.');
+        return;
+    }
+
+    const searchText = input.value.trim();
+    const place = autocomplete?.getPlace();
+
+    if (place?.geometry?.location) {
+        calculateRoutes(place.geometry.location);
+    } else {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: searchText }, (results, status) => {
+            const location = (status === google.maps.GeocoderStatus.OK && results[0])
+                ? results[0].geometry.location
+                : searchText;
+            calculateRoutes(location);
+        });
+    }
+}
+
+function calculateRoutes(destination) {
+    if (!window.directionsService || !window.directionsRenderer) {
+        console.error('Directions service not ready');
+        return;
+    }
+
+    const request = {
+        origin: window.currentLocation,
+        destination,
+        travelMode: google.maps.TravelMode.WALKING,
+        provideRouteAlternatives: true,
+        optimizeWaypoints: true
+    };
+
+    window.directionsRenderer.setMap(null);
+    window.directionsRenderer = new google.maps.DirectionsRenderer({
+        suppressMarkers: true,
+        preserveViewport: false
+    });
+    window.directionsRenderer.setMap(map);
+    routes = [];
+
+    const routeInfo = document.getElementById('route-info');
+    routeInfo.innerHTML = '<div class="loading">Calculating routes...</div>';
+
+    window.directionsService.route(request, (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK) {
+            routes = result.routes;
+            displayRoutes();
+        } else {
+            console.error('Route error:', status);
+            routeInfo.innerHTML = '<div class="error-message">Could not find routes. Try again.</div>';
+        }
+    });
 }
 
 function addUserMarker() {
     new google.maps.Marker({
-        position: currentLocation,
+        position: window.currentLocation,
         map: map,
         title: 'Your Location',
         icon: {
@@ -83,190 +269,6 @@ function addUserMarker() {
     });
 }
 
-function setupEventListeners() {
-    const searchButton = document.getElementById('search');
-    const destinationInput = document.getElementById('destination');
-    const addPinButton = document.getElementById('add-pin');
-    const cancelPinButton = document.getElementById('cancel-pin');
-    const mapContainer = document.querySelector('.map-container');
-
-    // Initialize autocomplete for destination input
-    autocomplete = new google.maps.places.Autocomplete(destinationInput);
-
-    searchButton.addEventListener('click', () => {
-        console.log('Search button clicked');
-        handleRouteSearch();
-    });
-
-    // Also handle 'Enter' key in the input
-    destinationInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleRouteSearch();
-        }
-    });
-
-    addPinButton.addEventListener('click', () => {
-        if (!isPinDropMode) {
-            startPinDropMode();
-        }
-    });
-
-    cancelPinButton.addEventListener('click', () => {
-        if (isPinDropMode) {
-            endPinDropMode();
-        }
-    });
-}
-
-function handleRouteSearch() {
-    console.log('handleRouteSearch called');
-    
-    if (!currentLocation) {
-        alert('Please wait for your location to be detected.');
-        return;
-    }
-
-    const destinationInput = document.getElementById('destination');
-    const searchText = destinationInput.value.trim();
-    
-    if (!searchText) {
-        alert('Please enter a destination.');
-        return;
-    }
-
-    console.log('Searching for:', searchText);
-
-    if (!autocomplete) {
-        console.error('Autocomplete not initialized');
-        // Fallback to direct geocoding
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address: searchText }, (results, status) => {
-            if (status === google.maps.GeocoderStatus.OK && results[0]) {
-                calculateRoutes(results[0].geometry.location);
-            } else {
-                calculateRoutes(searchText);
-            }
-        });
-        return;
-    }
-
-    const place = autocomplete.getPlace();
-    console.log('Place:', place);
-    
-    if (place && place.geometry && place.geometry.location) {
-        console.log('Using place geometry');
-        calculateRoutes(place.geometry.location);
-    } else {
-        console.log('Falling back to geocoding');
-        // Fallback to geocoding the entered text
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address: searchText }, (results, status) => {
-            if (status === google.maps.GeocoderStatus.OK && results[0]) {
-                calculateRoutes(results[0].geometry.location);
-            } else {
-                // Try using the text directly with the Directions service
-                calculateRoutes(searchText);
-            }
-        });
-    }
-}
-
-function startPinDropMode() {
-    isPinDropMode = true;
-    const mapContainer = document.querySelector('.map-container');
-    const addPinButton = document.getElementById('add-pin');
-    const cancelPinButton = document.getElementById('cancel-pin');
-    const pinType = document.getElementById('pin-type');
-
-    // Update UI
-    mapContainer.classList.add('pin-drop-mode');
-    addPinButton.textContent = 'Click Map to Place Pin';
-    addPinButton.style.opacity = '0.7';
-    cancelPinButton.classList.remove('hidden');
-    pinType.disabled = true;
-
-    // Add map click listener
-    mapClickListener = map.addListener('click', (event) => {
-        addSafetyPin(event.latLng, pinType.value);
-        endPinDropMode();
-    });
-}
-
-function endPinDropMode() {
-    isPinDropMode = false;
-    const mapContainer = document.querySelector('.map-container');
-    const addPinButton = document.getElementById('add-pin');
-    const cancelPinButton = document.getElementById('cancel-pin');
-    const pinType = document.getElementById('pin-type');
-
-    // Update UI
-    mapContainer.classList.remove('pin-drop-mode');
-    addPinButton.textContent = 'Add Safety Pin';
-    addPinButton.style.opacity = '1';
-    cancelPinButton.classList.add('hidden');
-    pinType.disabled = false;
-
-    // Remove map click listener
-    if (mapClickListener) {
-        google.maps.event.removeListener(mapClickListener);
-        mapClickListener = null;
-    }
-}
-
-function calculateRoutes(destination) {
-    console.log('Calculating routes to:', destination);
-
-    if (!directionsService || !directionsRenderer) {
-        directionsService = new google.maps.DirectionsService();
-        directionsRenderer = new google.maps.DirectionsRenderer({
-            suppressMarkers: true,
-            preserveViewport: false
-        });
-        directionsRenderer.setMap(map);
-    }
-
-    // Clear previous routes from the map
-    directionsRenderer.setMap(null);
-    directionsRenderer = new google.maps.DirectionsRenderer({
-        suppressMarkers: true,
-        preserveViewport: false
-    });
-    directionsRenderer.setMap(map);
-    routes = [];
-
-    const request = {
-        origin: currentLocation,
-        destination: destination,
-        travelMode: google.maps.TravelMode.WALKING,
-        provideRouteAlternatives: true,
-        optimizeWaypoints: true
-    };
-
-    console.log('Route request:', request);
-
-    // Show loading state
-    const routeInfo = document.getElementById('route-info');
-    routeInfo.innerHTML = '<div class="loading">Calculating routes...</div>';
-
-    directionsService.route(request, (result, status) => {
-        console.log('Directions service response:', status);
-        if (status === google.maps.DirectionsStatus.OK) {
-            console.log('Routes found:', result.routes.length);
-            routes = result.routes;
-            displayRoutes();
-        } else {
-            console.error('Directions request failed:', status);
-            routeInfo.innerHTML = `
-                <div class="error-message">
-                    Could not find routes to this destination. 
-                    Please try a different address or ensure the location is accessible by walking.
-                </div>
-            `;
-        }
-    });
-}
-
 function displayRoutes() {
     const routeInfo = document.getElementById('route-info');
     routeInfo.innerHTML = '';
@@ -276,14 +278,10 @@ function displayRoutes() {
         const safetyClass = getSafetyClass(safetyScore);
         const safetyLabel = getSafetyLabel(safetyScore);
 
-        // Display route on map with unique color
         const routeColor = getRouteColor(safetyScore);
         const rendererOptions = {
             map: map,
-            directions: {
-                routes: [route],
-                request: { travelMode: google.maps.TravelMode.WALKING }
-            },
+            directions: { routes: [route], request: { travelMode: google.maps.TravelMode.WALKING } },
             routeIndex: index,
             polylineOptions: {
                 strokeColor: routeColor,
@@ -294,7 +292,6 @@ function displayRoutes() {
 
         const renderer = new google.maps.DirectionsRenderer(rendererOptions);
 
-        // Create route info card
         const routeCard = document.createElement('div');
         routeCard.className = `route-item ${safetyClass}`;
         routeCard.innerHTML = `
@@ -303,21 +300,13 @@ function displayRoutes() {
             <p><strong>Duration:</strong> ${route.legs[0].duration.text}</p>
             <p><strong>Safety Score:</strong> <span class="score">${safetyScore.toFixed(1)}/10</span></p>
             <p><strong>Safety Analysis:</strong></p>
-            <ul class="safety-details">
-                ${getSafetyDetails(route)}
-            </ul>
+            <ul class="safety-details">${getSafetyDetails(route)}</ul>
             <span class="safety-tag">${safetyLabel}</span>
         `;
 
-        // Add click handler to highlight route
         routeCard.addEventListener('click', () => {
-            // Remove previous highlights
-            document.querySelectorAll('.route-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            // Add highlight to clicked route
+            document.querySelectorAll('.route-item').forEach(item => item.classList.remove('active'));
             routeCard.classList.add('active');
-            // Center the map on this route
             const bounds = new google.maps.LatLngBounds();
             route.overview_path.forEach(point => bounds.extend(point));
             map.fitBounds(bounds);
@@ -328,57 +317,33 @@ function displayRoutes() {
 }
 
 function calculateSafetyScore(route) {
-    let score = 7; // Start with a neutral score
+    let score = 7;
     const path = route.overview_path;
-    
-    // Convert path points to LatLng objects
-    const routePoints = path.map(point => new google.maps.LatLng(point.lat(), point.lng()));
-    
-    // Check each safety pin's distance to the route
+    const routePoints = path.map(p => new google.maps.LatLng(p.lat(), p.lng()));
+
     safetyPins.forEach(pin => {
         const pinLatLng = new google.maps.LatLng(pin.position.lat, pin.position.lng);
-        
-        // Check if pin is within 50 meters of any point on the route
-        let isNearRoute = false;
-        const THRESHOLD_METERS = 50;
+        let isNear = routePoints.some(point => {
+            const dist = google.maps.geometry.spherical.computeDistanceBetween(pinLatLng, point);
+            return dist <= 50;
+        });
 
-        for (let i = 0; i < routePoints.length && !isNearRoute; i++) {
-            const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                pinLatLng,
-                routePoints[i]
-            );
-            if (distance <= THRESHOLD_METERS) {
-                isNearRoute = true;
-            }
-        }
-
-        // If pin is near route, adjust score based on pin type
-        if (isNearRoute) {
+        if (isNear) {
             switch (pin.type) {
-                case 'unsafe':
-                    score -= 1.5;
-                    break;
-                case 'high-traffic':
-                    score -= 0.5;
-                    break;
-                case 'safe':
-                    score += 0.8;
-                    break;
+                case 'unsafe': score -= 1.5; break;
+                case 'high-traffic': score -= 0.5; break;
+                case 'safe': score += 0.8; break;
             }
         }
     });
 
-    // Clamp score between 0 and 10
-    score = Math.max(0, Math.min(10, score));
-    
-    // Round to one decimal place
-    return Math.round(score * 10) / 10;
+    return Math.max(0, Math.min(10, Math.round(score * 10) / 10));
 }
 
-function getRouteColor(safetyScore) {
-    if (safetyScore >= 8) return '#34a853';  // Safe - Green
-    if (safetyScore >= 5) return '#fbbc05';  // Moderate - Yellow
-    return '#ea4335';  // Unsafe - Red
+function getRouteColor(score) {
+    if (score >= 8) return '#34a853';
+    if (score >= 5) return '#fbbc05';
+    return '#ea4335';
 }
 
 function getSafetyClass(score) {
@@ -395,83 +360,90 @@ function getSafetyLabel(score) {
 
 function getSafetyDetails(route) {
     const path = route.overview_path;
-    const routePoints = path.map(point => new google.maps.LatLng(point.lat(), point.lng()));
-    
+    const routePoints = path.map(p => new google.maps.LatLng(p.lat(), p.lng()));
     const THRESHOLD_METERS = 50;
-    const nearbyPins = {
-        unsafe: 0,
-        'high-traffic': 0,
-        safe: 0
-    };
+    const nearbyPins = { unsafe: 0, 'high-traffic': 0, safe: 0 };
 
-    // Count nearby pins
     safetyPins.forEach(pin => {
         const pinLatLng = new google.maps.LatLng(pin.position.lat, pin.position.lng);
-        
-        // Check if pin is near any point on the route
-        for (let i = 0; i < routePoints.length; i++) {
-            const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                pinLatLng,
-                routePoints[i]
-            );
-            if (distance <= THRESHOLD_METERS) {
+        for (let point of routePoints) {
+            const dist = google.maps.geometry.spherical.computeDistanceBetween(pinLatLng, point);
+            if (dist <= THRESHOLD_METERS) {
                 nearbyPins[pin.type]++;
-                break; // Stop checking once we know it's near
+                break;
             }
         }
     });
 
     const details = [];
-    
-    if (nearbyPins.unsafe > 0) {
-        details.push(`⚠️ Near ${nearbyPins.unsafe} unsafe area${nearbyPins.unsafe > 1 ? 's' : ''} (-${(nearbyPins.unsafe * 1.5).toFixed(1)} points)`);
-    }
-    if (nearbyPins['high-traffic'] > 0) {
-        details.push(`🚗 Near ${nearbyPins['high-traffic']} high-traffic area${nearbyPins['high-traffic'] > 1 ? 's' : ''} (-${(nearbyPins['high-traffic'] * 0.5).toFixed(1)} points)`);
-    }
-    if (nearbyPins.safe > 0) {
-        details.push(`✅ Near ${nearbyPins.safe} safe area${nearbyPins.safe > 1 ? 's' : ''} (+${(nearbyPins.safe * 0.8).toFixed(1)} points)`);
-    }
-    
-    if (details.length === 0) {
-        details.push('No safety data available for this route');
-    }
+    if (nearbyPins.unsafe) details.push(`⚠️ Near ${nearbyPins.unsafe} unsafe area${nearbyPins.unsafe > 1 ? 's' : ''}`);
+    if (nearbyPins['high-traffic']) details.push(`🚗 Near ${nearbyPins['high-traffic']} high-traffic area${nearbyPins['high-traffic'] > 1 ? 's' : ''}`);
+    if (nearbyPins.safe) details.push(`✅ Near ${nearbyPins.safe} safe area${nearbyPins.safe > 1 ? 's' : ''}`);
+    if (!details.length) details.push('No safety data available for this route');
 
-    return details.map(detail => `<li>${detail}</li>`).join('');
+    return details.map(d => `<li>${d}</li>`).join('');
 }
 
 function addSafetyPin(position, type) {
     const pin = {
-        position: {
-            lat: position.lat(),
-            lng: position.lng()
-        },
+        position: { lat: position.lat(), lng: position.lng() },
         type: type
     };
-
     safetyPins.push(pin);
     saveSafetyPins();
 
     const marker = new google.maps.Marker({
-        position: position,
-        map: map,
+        position,
+        map,
         icon: getPinIcon(type),
         animation: google.maps.Animation.DROP
     });
 
-    // Add click listener to remove pin
     marker.addListener('click', () => {
-        if (!isPinDropMode) {  // Only allow pin removal when not in pin-drop mode
-            const confirmDelete = confirm('Remove this safety pin?');
-            if (confirmDelete) {
-                marker.setMap(null);
-                safetyPins = safetyPins.filter(p => 
-                    p.position.lat !== position.lat() || p.position.lng !== position.lng()
-                );
-                saveSafetyPins();
-            }
+        if (!isPinDropMode && confirm('Remove this safety pin?')) {
+            marker.setMap(null);
+            safetyPins = safetyPins.filter(p => p.position.lat !== position.lat() || p.position.lng !== position.lng());
+            saveSafetyPins();
         }
     });
+}
+
+function startPinDropMode() {
+    isPinDropMode = true;
+    const mapContainer = document.querySelector('.map-container');
+    const addPinButton = document.getElementById('add-pin');
+    const cancelPinButton = document.getElementById('cancel-pin');
+    const pinType = document.getElementById('pin-type');
+
+    mapContainer.classList.add('pin-drop-mode');
+    addPinButton.textContent = 'Click Map to Place Pin';
+    addPinButton.style.opacity = '0.7';
+    cancelPinButton.classList.remove('hidden');
+    pinType.disabled = true;
+
+    mapClickListener = map.addListener('click', (event) => {
+        addSafetyPin(event.latLng, pinType.value);
+        endPinDropMode();
+    });
+}
+
+function endPinDropMode() {
+    isPinDropMode = false;
+    const mapContainer = document.querySelector('.map-container');
+    const addPinButton = document.getElementById('add-pin');
+    const cancelPinButton = document.getElementById('cancel-pin');
+    const pinType = document.getElementById('pin-type');
+
+    mapContainer.classList.remove('pin-drop-mode');
+    addPinButton.textContent = 'Add Safety Pin';
+    addPinButton.style.opacity = '1';
+    cancelPinButton.classList.add('hidden');
+    pinType.disabled = false;
+
+    if (mapClickListener) {
+        google.maps.event.removeListener(mapClickListener);
+        mapClickListener = null;
+    }
 }
 
 function getPinIcon(type) {
@@ -480,7 +452,6 @@ function getPinIcon(type) {
         unsafe: '#ea4335',
         'high-traffic': '#fbbc05'
     };
-
     return {
         path: google.maps.SymbolPath.CIRCLE,
         scale: 10,
@@ -507,67 +478,32 @@ function loadSafetyPins() {
             });
         });
     } else {
-        // Add sample safety pins around the user's location
         createSamplePins();
     }
 }
 
 function createSamplePins() {
-    // Create an array of sample pins around the user's location
     const samplePins = [
-        {
-            type: 'safe',
-            offset: { lat: 0.002, lng: 0.002 },  // Northeast
-            description: 'Well-lit area with security cameras'
-        },
-        {
-            type: 'unsafe',
-            offset: { lat: -0.001, lng: 0.001 },  // Southeast
-            description: 'Poor lighting and reported incidents'
-        },
-        {
-            type: 'high-traffic',
-            offset: { lat: 0.001, lng: -0.002 },  // Southwest
-            description: 'Heavy vehicle traffic during peak hours'
-        },
-        {
-            type: 'safe',
-            offset: { lat: -0.002, lng: -0.001 },  // Northwest
-            description: 'Active neighborhood watch area'
-        },
-        {
-            type: 'unsafe',
-            offset: { lat: 0.0015, lng: 0 },      // North
-            description: 'Construction site with limited visibility'
-        }
+        { type: 'safe', offset: { lat: 0.002, lng: 0.002 } },
+        { type: 'unsafe', offset: { lat: -0.001, lng: 0.001 } },
+        { type: 'high-traffic', offset: { lat: 0.001, lng: -0.002 } },
+        { type: 'safe', offset: { lat: -0.002, lng: -0.001 } },
+        { type: 'unsafe', offset: { lat: 0.0015, lng: 0 } }
     ];
 
-    // Add each sample pin
-    samplePins.forEach(samplePin => {
-        const position = {
-            lat: currentLocation.lat + samplePin.offset.lat,
-            lng: currentLocation.lng + samplePin.offset.lng
+    samplePins.forEach(sample => {
+        const pos = {
+            lat: window.currentLocation.lat + sample.offset.lat,
+            lng: window.currentLocation.lng + sample.offset.lng
         };
-
-        const pin = {
-            position: position,
-            type: samplePin.type,
-            description: samplePin.description
-        };
-
+        const pin = { position: pos, type: sample.type };
         safetyPins.push(pin);
-
         new google.maps.Marker({
-            position: position,
+            position: pos,
             map: map,
-            icon: getPinIcon(samplePin.type),
-            title: samplePin.description
+            icon: getPinIcon(sample.type)
         });
     });
 
-    // Save sample pins to localStorage
     saveSafetyPins();
 }
-
-// Initialize the map when the page loads
-window.initMap = initMap; 
