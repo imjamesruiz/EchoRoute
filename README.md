@@ -1,15 +1,15 @@
-# EchoRoute 🛡️🗺️
+# EchoRoute
 
 A modern route safety navigation application that helps users find the safest walking routes to their destination. Built with JavaScript, Google Maps API, and a beautiful dashboard interface.
 
 ## Features
 
-- 🗺️ Interactive map with real-time route planning
-- 🛡️ Safety score calculation based on nearby safety pins
-- 📊 Modern dashboard layout with key statistics
-- 📍 Crowdsourced safety data points
-- 🎨 Beautiful, responsive UI with modern design elements
-- 📱 Mobile and tablet-friendly interface
+- Interactive map with real-time route planning
+- Safety score calculation based on nearby safety pins
+- Modern dashboard layout with key statistics
+- Crowdsourced safety data points
+- Beautiful, responsive UI with modern design elements
+- Mobile and tablet-friendly interface
 
 ## Tech Stack
 
